@@ -1,0 +1,693 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <fstream> // Include for file handling
+#include <regex>   // Include for input validation
+#include <sstream> // Include for string stream
+#include <iomanip> // Include for password hashing
+using namespace std;
+
+class admin;
+class customer;
+
+vector<admin> admininfo;
+vector<customer> customerinfo;
+int counter = 0;
+
+class person {
+public:
+    int CID;
+    int SSN;
+    string username;
+    string name;
+    string org;
+    string status;
+    string DOB;
+    string DOJ;
+    string password;
+
+    // Default constructor
+    person() : CID(0), SSN(0), username(""), name(""), org(""), status(""), DOB(""), DOJ(""), password("") {}
+
+    // Setters
+    void setCID(int counter) {
+        this->CID = counter;
+        counter++;
+    }
+    void setSSN(int a) {
+        this->SSN = a;
+    }
+    void setusername(string a) {
+        this->username = a;
+    }
+    void setname(string a) {
+        this->name = a;
+    }
+    void setorg(string a) {
+        this->org = a;
+    }
+    void setstatus(string a) {
+        this->status = a;
+    }
+    void setDOB(string a) {
+        this->DOB = a;
+    }
+    void setDOJ(string a) {
+        this->DOJ = a;
+    }
+    void setpassword(string a) {
+        this->password = hashPassword(a);  // Hash the password before storing it
+    }
+
+    // Getters
+    int getCID() {
+        return CID;
+    }
+    int getSSN() {
+        return SSN;
+    }
+    string getusername() {
+        return username;
+    }
+    string getname() {
+        return name;
+    }
+    string getorg() {
+        return org;
+    }
+    string getstatus() {
+        return status;
+    }
+    string getDOB() {
+        return DOB;
+    }
+    string getDOJ() {
+        return DOJ;
+    }
+    string getpassword() {
+        string password;
+        bool valid = false;
+        while (!valid) {
+            bool length = false;
+            bool isnumber = false;
+            bool isuppercase = false;
+            bool islowercase = false;
+            cout << "Enter your password.\n    Password Requirements:\n    Must include a number\n    Must include an upper and lower case letter\n    Must be a minimum length of 6 characters\n";
+            cin >> password;
+            if (password.length() >= 6)
+                length = true;
+            for (int i = 0; i < password.length(); i++) {
+                if (isdigit(password[i]))
+                    isnumber = true;
+                if (isupper(password[i]))
+                    isuppercase = true;
+                if (islower(password[i]))
+                    islowercase = true;
+            }
+            if (length && isnumber && isuppercase && islowercase)
+                valid = true;
+            if (!valid)
+                cout << "Not a valid password.\n";
+        }
+        return password;
+    }
+
+    // Method to hash the password
+    string hashPassword(string password) {
+        ostringstream oss;
+        for (char c : password) {
+            oss << hex << setw(2) << setfill('0') << (int)c;
+        }
+        return oss.str();
+    }
+
+    // Method to check password hash
+    bool checkPassword(string inputPassword) {
+        return hashPassword(inputPassword) == password;
+    }
+};
+
+class customer : public person {
+private:
+    string acctype;
+    vector<string> messages; // store messages
+    vector<float> transactions; // store transactions
+    float current_balance; // Current balance of the customer
+
+public:
+    customer() : current_balance(0.0) {} // Default constructor initializing balance to 0
+
+    customer(int cid, int ssn, string username, string name, string acctype, string org, string status, string dob, string doj, string password) {
+        setCID(cid);
+        setSSN(ssn);
+        setusername(username);
+        setname(name);
+        setacctype(acctype);
+        setorg(org);
+        setstatus(status);
+        setDOB(dob);
+        setDOJ(doj);
+        setpassword(password);
+        current_balance = 0.0;
+    }
+
+    void setacctype(string a) {
+        this->acctype = a;
+    }
+    string getacctype() {
+        return acctype;
+    }
+
+    void addMessage(string message) {
+        messages.push_back(message); // Add message to the vector
+    }
+
+    void addTransaction(float amount) {
+        transactions.push_back(amount); // Add transaction to the vector
+        current_balance += amount; // Update the current balance
+    }
+
+    float getcurrentbalance() {
+        return current_balance;
+    }
+
+    float withdrawal(float amount) {
+        if (current_balance >= amount) {
+            addTransaction(-amount); // Withdraw amount and add as a negative transaction
+            return current_balance;
+        }
+        else {
+            cout << "Insufficient balance." << endl;
+            return current_balance;
+        }
+    }
+
+    float deposit(float amount) {
+        addTransaction(amount); // Deposit amount and add as a transaction
+        return current_balance;
+    }
+
+    float transfer(float amount, int CID) {
+        for (auto& cust : customerinfo) {
+            if (cust.getCID() == CID) {
+                if (current_balance >= amount) {
+                    withdrawal(amount);
+                    cust.deposit(amount);
+                    cout << "Transfer successful.\n";
+                }
+                else {
+                    cout << "Insufficient balance for transfer.\n";
+                }
+                return current_balance;
+            }
+        }
+        cout << "Recipient customer ID not found.\n";
+        return current_balance;
+    }
+
+    void showLastNTransactions(int N) {
+        cout << "Last " << N << " transactions: ";
+        for (int i = transactions.size() - N; i < transactions.size(); i++) {
+            if (i >= 0) {
+                cout << transactions[i] << " ";
+            }
+        }
+        cout << endl;
+    }
+
+    void showInboxMessages(int N) {
+        cout << "Last " << N << " messages: ";
+        for (int i = messages.size() - N; i < messages.size(); i++) {
+            if (i >= 0) {
+                cout << messages[i] << " ";
+            }
+        }
+        cout << endl;
+    }
+
+    bool signin(string username, string password) {
+        for (auto& cust : customerinfo) {
+            if (cust.getusername() == username && cust.checkPassword(password)) {
+                cout << "Customer Signin Successful\n";
+                return true;
+            }
+        }
+        cout << "Customer Signin Failed\n";
+        return false;
+    }
+
+    void saveToFile(ofstream& outfile) {
+        outfile << CID << " " << SSN << " " << username << " " << name << " " << acctype << " " << org << " " << status << " " << DOB << " " << DOJ << " " << password << " " << current_balance << "\n";
+        outfile << messages.size() << " ";
+        for (auto& msg : messages) {
+            outfile << msg << " ";
+        }
+        outfile << "\n";
+        outfile << transactions.size() << " ";
+        for (auto& trans : transactions) {
+            outfile << trans << " ";
+        }
+        outfile << "\n";
+    }
+
+    void loadFromFile(ifstream& infile) {
+        infile >> CID >> SSN >> username >> name >> acctype >> org >> status >> DOB >> DOJ >> password >> current_balance;
+        int msgSize, transSize;
+        infile >> msgSize;
+        messages.resize(msgSize);
+        for (int i = 0; i < msgSize; i++) {
+            infile >> messages[i];
+        }
+        infile >> transSize;
+        transactions.resize(transSize);
+        for (int i = 0; i < transSize; i++) {
+            infile >> transactions[i];
+        }
+    }
+};
+
+class admin : public person {
+public:
+    admin() {}  // Default constructor
+
+    admin(int CID, int SSN, string username, string name, string org, string status, string DOB, string DOJ, string password) {
+        this->CID = CID;
+        this->SSN = SSN;
+        this->username = username;
+        this->name = name;
+        this->org = org;
+        this->status = status;
+        this->DOB = DOB;
+        this->DOJ = DOJ;
+        this->password = password;
+    }
+
+    void adminsignup() {
+        system("clear");
+        int k;
+        cout << "YOU MUST COMPLETE THE FOLLOWING BEFORE ACCEPTING ANY CUSTOMERS FOR YOUR BANKING STARTUP\n";
+        cout << "1: Admin Information/Credentials\n";
+        cout << "2: Interest Rate\n";
+        cout << "3: Customer Signup Information Requirement\n";
+        cout << "4: Maximum Initial Targeted Customer Base\n";
+        cout << "Press 1 to set up your information. Otherwise press any other key to come back later.\n";   // Choose to enter the info now or just exit the program
+        cin >> k;
+        cin.ignore();
+        if (k != 1)
+            exit(0);
+        else {
+            setupadmininfo();
+        }
+    }
+
+    void setupadmininfo() {
+        system("clear");
+        int SSN = 0;
+        string username;
+        string name;
+        string org;
+        string status;
+        string DOB;
+        string DOJ;
+        string password;
+
+        CID = counter;
+        counter++;
+        cout << "Enter your username\n";
+        getline(cin, username);
+        cout << "Enter your name\n";
+        getline(cin, name);
+        cout << "Enter your organization\n";
+        getline(cin, org);
+        status = "active";
+        cout << "Enter your DOB (YYYY-MM-DD)\n";
+        getline(cin, DOB);
+        cout << "Enter your DOJ (YYYY-MM-DD)\n";
+        getline(cin, DOJ);
+        cout << "Enter your password\n";
+        password = getpassword();
+        admininfo.push_back(admin(CID, SSN, username, name, org, status, DOB, DOJ, password));
+    }
+
+    void payInterest(vector<customer>& customers, float interestrate) {
+        for (auto& cust : customers) {
+            float interest = cust.getcurrentbalance() * interestrate;
+            cust.deposit(interest);
+        }
+    }
+
+    void checkNegativeBalance(vector<customer>& customers) {
+        for (auto& cust : customers) {
+            if (cust.getcurrentbalance() < 0) {
+                cout << "Customer " << cust.getusername() << " has a negative balance.\n";
+            }
+        }
+    }
+
+    void checkPositiveBalance(vector<customer>& customers) {
+        for (auto& cust : customers) {
+            if (cust.getcurrentbalance() > 0) {
+                cout << "Customer " << cust.getusername() << " has a positive balance.\n";
+            }
+        }
+    }
+
+    void blockNegativeAccount(vector<customer>& customers) {
+        for (auto& cust : customers) {
+            if (cust.getcurrentbalance() < 0) {
+                cust.setstatus("blocked");
+                cout << "Customer " << cust.getusername() << " has been blocked due to negative balance.\n";
+            }
+        }
+    }
+
+    void generateSummaryReport(vector<customer>& customers) {
+        int total_customers = customers.size();
+        int active_customers = 0;
+        int inactive_customers = 0;
+        float total_positive_balance = 0;
+        float total_negative_balance = 0;
+
+        for (auto& cust : customers) {
+            if (cust.getstatus() == "active") {
+                active_customers++;
+            }
+            else {
+                inactive_customers++;
+            }
+
+            if (cust.getcurrentbalance() > 0) {
+                total_positive_balance += cust.getcurrentbalance();
+            }
+            else {
+                total_negative_balance += cust.getcurrentbalance();
+            }
+        }
+
+        cout << "Total Customers: " << total_customers << endl;
+        cout << "Total Active Customers: " << active_customers << endl;
+        cout << "Total Inactive Customers: " << inactive_customers << endl;
+        cout << "Total Positive Balance: $" << total_positive_balance << endl;
+        cout << "Total Negative Balance: $" << total_negative_balance << endl;
+    }
+
+    bool signin(string username, string password) {
+        for (auto& admin : admininfo) {
+            if (admin.getusername() == username && admin.checkPassword(password)) {
+                cout << "Admin Signin Successful\n";
+                return true;
+            }
+        }
+        cout << "Admin Signin Failed\n";
+        return false;
+    }
+
+    void saveToFile(ofstream& outfile) {
+        outfile << CID << " " << SSN << " " << username << " " << name << " " << org << " " << status << " " << DOB << " " << DOJ << " " << password << "\n";
+    }
+
+    void loadFromFile(ifstream& infile) {
+        infile >> CID >> SSN >> username >> name >> org >> status >> DOB >> DOJ >> password;
+    }
+};
+
+void saveData() {
+    ofstream customerFile("customerData.txt");
+    if (!customerFile) {
+        cerr << "Error opening customer data file for writing." << endl;
+        return;
+    }
+    for (auto& cust : customerinfo) {
+        cust.saveToFile(customerFile);
+    }
+    customerFile.close();
+
+    ofstream adminFile("adminData.txt");
+    if (!adminFile) {
+        cerr << "Error opening admin data file for writing." << endl;
+        return;
+    }
+    for (auto& adm : admininfo) {
+        adm.saveToFile(adminFile);
+    }
+    adminFile.close();
+}
+
+void loadData() {
+    ifstream customerFile("customerData.txt");
+    if (!customerFile) {
+        cerr << "Error opening customer data file for reading." << endl;
+        return;
+    }
+    while (customerFile) {
+        customer cust;
+        cust.loadFromFile(customerFile);
+        if (customerFile) {
+            customerinfo.push_back(cust);
+        }
+    }
+    customerFile.close();
+
+    ifstream adminFile("adminData.txt");
+    if (!adminFile) {
+        cerr << "Error opening admin data file for reading." << endl;
+        return;
+    }
+    while (adminFile) {
+        admin adm;
+        adm.loadFromFile(adminFile);
+        if (adminFile) {
+            admininfo.push_back(adm);
+        }
+    }
+    adminFile.close();
+}
+
+bool isValidSSN(const string& ssn) {
+    return regex_match(ssn, regex("\\d{9}"));
+}
+
+bool isValidDate(const string& date) {
+    return regex_match(date, regex("\\d{4}-\\d{2}-\\d{2}"));
+}
+
+void customersignup() {
+    system("clear");
+    int SSN = 0;
+    string username;
+    string name;
+    string org;
+    string status;
+    string DOB;
+    string DOJ;
+    string password;
+    string acctype;
+
+    cout << "Enter your username: ";
+    cin >> username;
+
+    do {
+        cout << "Enter your SSN (9 digits): ";
+        cin >> SSN;
+        if (!isValidSSN(to_string(SSN))) {
+            cout << "Invalid SSN. Please try again.\n";
+        }
+    } while (!isValidSSN(to_string(SSN)));
+
+    cout << "Enter your name: ";
+    cin.ignore();
+    getline(cin, name);
+    cout << "Enter your organization: ";
+    getline(cin, org);
+    status = "active";
+
+    do {
+        cout << "Enter your DOB (YYYY-MM-DD): ";
+        getline(cin, DOB);
+        if (!isValidDate(DOB)) {
+            cout << "Invalid date format. Please try again.\n";
+        }
+    } while (!isValidDate(DOB));
+
+    do {
+        cout << "Enter your DOJ (YYYY-MM-DD): ";
+        getline(cin, DOJ);
+        if (!isValidDate(DOJ)) {
+            cout << "Invalid date format. Please try again.\n";
+        }
+    } while (!isValidDate(DOJ));
+
+    cout << "Enter your account type (Savings/Checking): ";
+    cin >> acctype;
+    cout << "Enter your password: ";
+    password = person().getpassword();
+
+    customerinfo.push_back(customer(counter++, SSN, username, name, acctype, org, status, DOB, DOJ, password)); // Add customer to the vector
+}
+
+int main() {
+    loadData(); // Load data at the start
+
+    admin adminObj;  // to call member function
+    adminObj.adminsignup();
+
+    int userInput = 0;
+    while (userInput != 4) {
+        system("clear");
+        cout << "************Welcome to C++ Programmers Bank************\n";
+        cout << "1: Admin Signin\n";
+        cout << "2: Customer Signin\n";
+        cout << "3: Customer Signup\n";
+        cout << "4: Exit\n";
+        cout << "Enter an option\n";
+
+        cin >> userInput;
+        switch (userInput) {
+        case 1: {
+            cout << "Admin Signin Page\n";
+            string username, password;
+            cout << "Enter Admin Username: ";
+            cin >> username;
+            cout << "Enter Password: ";
+            password = adminObj.getpassword(); // Admin password verification
+            if (adminObj.signin(username, password)) {
+                // Admin functionalities
+                int adminOption = 0;
+                while (adminOption != 7) {
+                    cout << "1: Pay Monthly Interest\n";
+                    cout << "2: Check accounts with -ve balance\n";
+                    cout << "3: Check accounts with +ve balances\n";
+                    cout << "4: Block accounts with repeated -ve balance\n";
+                    cout << "5: Generate summary report\n";
+                    cout << "6: Save Data\n";
+                    cout << "7: Logout\n";
+                    cout << "Enter an option: ";
+                    cin >> adminOption;
+                    switch (adminOption) {
+                    case 1:
+                        adminObj.payInterest(customerinfo, 0.05); // Assuming 5% interest rate
+                        break;
+                    case 2:
+                        adminObj.checkNegativeBalance(customerinfo);
+                        break;
+                    case 3:
+                        adminObj.checkPositiveBalance(customerinfo);
+                        break;
+                    case 4:
+                        adminObj.blockNegativeAccount(customerinfo);
+                        break;
+                    case 5:
+                        adminObj.generateSummaryReport(customerinfo);
+                        break;
+                    case 6:
+                        saveData();
+                        cout << "Data saved successfully.\n";
+                        break;
+                    case 7:
+                        cout << "Admin Logout\n";
+                        adminOption = 7;
+                        break;
+                    default:
+                        cout << "Please choose a valid option\n";
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+        case 2: {
+            cout << "Customer Signin Page\n";
+            string username, password;
+            cout << "Enter Customer Username: ";
+            cin >> username;
+            cout << "Enter Password: ";
+            password = person().getpassword(); // Customer password verification
+            customer custObj;
+            if (custObj.signin(username, password)) {
+                // Customer functionalities
+                int customerOption = 0;
+                while (customerOption != 8) {
+                    cout << "1: Statement summary last N transactions\n";
+                    cout << "2: Current Balance\n";
+                    cout << "3: Withdraw\n";
+                    cout << "4: Deposit\n";
+                    cout << "5: Transfer to other CID\n";
+                    cout << "6: Check Inbox\n";
+                    cout << "7: Save Data\n";
+                    cout << "8: Logout\n";
+                    cout << "Enter an option: ";
+                    cin >> customerOption;
+                    switch (customerOption) {
+                    case 1: {
+                        int N;
+                        cout << "Enter N: ";
+                        cin >> N;
+                        custObj.showLastNTransactions(N);
+                        break;
+                    }
+                    case 2:
+                        cout << "Current Balance: " << custObj.getcurrentbalance() << endl;
+                        break;
+                    case 3: {
+                        float amount;
+                        cout << "Enter amount to withdraw: ";
+                        cin >> amount;
+                        custObj.withdrawal(amount);
+                        break;
+                    }
+                    case 4: {
+                        float amount;
+                        cout << "Enter amount to deposit: ";
+                        cin >> amount;
+                        custObj.deposit(amount);
+                        break;
+                    }
+                    case 5: {
+                        int CID;
+                        float amount;
+                        cout << "Enter CID to transfer to: ";
+                        cin >> CID;
+                        cout << "Enter amount to transfer: ";
+                        cin >> amount;
+                        custObj.transfer(amount, CID);
+                        break;
+                    }
+                    case 6: {
+                        int N;
+                        cout << "Enter N: ";
+                        cin >> N;
+                        custObj.showInboxMessages(N);
+                        break;
+                    }
+                    case 7:
+                        saveData();
+                        cout << "Data saved successfully.\n";
+                        break;
+                    case 8:
+                        cout << "Customer Logout\n";
+                        customerOption = 8;
+                        break;
+                    default:
+                        cout << "Please choose a valid option\n";
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+        case 3:
+            cout << "Customer Signup Page\n";
+            customersignup(); // Call customer
+            break;
+        case 4:
+            cout << "Thank you for using C++ Programmers Bank\n";
+            saveData(); // Save data 
+            break;
+        default:
+            cout << "Please choose a valid option\n";
+            break;
+        }
+    }
+
+    return 0;
+}
